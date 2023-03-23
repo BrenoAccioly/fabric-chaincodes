@@ -8,6 +8,8 @@ import (
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
+const MAX_VALUE_LIMIT = 100
+
 type SensorContract struct {
 	contractapi.Contract
 }
@@ -28,6 +30,9 @@ func (s *SensorContract) HasAsset(ctx contractapi.TransactionContextInterface, i
 	return sensorAsset != nil, nil
 }
 
+/*
+Creates or updates a sensor asset. Emits an event if the value reaches a limit
+*/
 func (s *SensorContract) PutAsset(
 	ctx contractapi.TransactionContextInterface,
 	id string,
@@ -39,14 +44,23 @@ func (s *SensorContract) PutAsset(
 		Timestamp: ts,
 		Value:     value,
 	}
+
 	assetJSON, err := json.Marshal(sensorAsset)
+
 	if err != nil {
 		return err
+	}
+
+	if value > MAX_VALUE_LIMIT {
+		ctx.GetStub().SetEvent("max-value-limit", []byte(fmt.Sprintf("Max limit exceeded in sensor %s, value %d", id, value)))
 	}
 
 	return ctx.GetStub().PutState(id, assetJSON)
 }
 
+/*
+Deletes a sensor asset
+*/
 func (s *SensorContract) DeleteAsset(ctx contractapi.TransactionContextInterface, id string) error {
 	exist, err := s.HasAsset(ctx, id)
 	if err != nil {
@@ -59,6 +73,9 @@ func (s *SensorContract) DeleteAsset(ctx contractapi.TransactionContextInterface
 	return ctx.GetStub().DelState(id)
 }
 
+/*
+Gets a sensor asset given its id
+*/
 func (s *SensorContract) GetAsset(ctx contractapi.TransactionContextInterface, id string) (*SensorAsset, error) {
 	sensorAssetJSON, err := ctx.GetStub().GetState(id)
 
@@ -79,6 +96,9 @@ func (s *SensorContract) GetAsset(ctx contractapi.TransactionContextInterface, i
 	return &sensorAsset, nil
 }
 
+/*
+Gets multiple assets given a JSON array of ids (Not Working)
+*/
 func (s *SensorContract) GetAssets(ctx contractapi.TransactionContextInterface, idsJSON string) (assets []*SensorAsset, err error) {
 
 	if !json.Valid([]byte(idsJSON)) {
@@ -112,6 +132,9 @@ func (s *SensorContract) GetAssets(ctx contractapi.TransactionContextInterface, 
 	return
 }
 
+/*
+Gets all sensor assets
+*/
 func (s *SensorContract) GetAllAssets(ctx contractapi.TransactionContextInterface) (assets []*SensorAsset, err error) {
 	stateIterator, err := ctx.GetStub().GetStateByRange("", "")
 
@@ -141,6 +164,9 @@ func (s *SensorContract) GetAllAssets(ctx contractapi.TransactionContextInterfac
 	return
 }
 
+/*
+Gets a sensor asset state history given its 'id'. Returns only the 'max' most recent states
+*/
 func (s *SensorContract) GetAssetHistory(ctx contractapi.TransactionContextInterface, id string, max int) (assets []*SensorAsset, err error) {
 	historyIterator, err := ctx.GetStub().GetHistoryForKey(id)
 
@@ -171,15 +197,13 @@ func (s *SensorContract) GetAssetHistory(ctx contractapi.TransactionContextInter
 	return
 }
 
-// TODO event if sensor value reaches some limit, or something like this
-
 func main() {
 	chaincode, err := contractapi.NewChaincode(&SensorContract{})
 	if err != nil {
-		log.Panicf("Error creating asset-transfer-basic chaincode: %v", err)
+		log.Panicf("Error creating sensor chaincode: %v", err)
 	}
 
 	if err := chaincode.Start(); err != nil {
-		log.Panicf("Error starting asset-transfer-basic chaincode: %v", err)
+		log.Panicf("Error starting sensor chaincode: %v", err)
 	}
 }
