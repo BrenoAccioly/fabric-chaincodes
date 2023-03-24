@@ -97,26 +97,19 @@ func (s *SensorContract) GetAsset(ctx contractapi.TransactionContextInterface, i
 }
 
 /*
-Gets multiple assets given a JSON array of ids (Not Working)
+Gets multiple assets given a JSON array of ids
 */
-func (s *SensorContract) GetAssets(ctx contractapi.TransactionContextInterface, idsJSON string) (assets []*SensorAsset, err error) {
-
-	if !json.Valid([]byte(idsJSON)) {
-		return nil, fmt.Errorf("Invalid JSON object as argument")
-	}
-
-	var ids []string
-	err = json.Unmarshal([]byte(idsJSON), &ids)
-
-	if err != nil {
-		return nil, err
-	}
+func (s *SensorContract) GetAssets(ctx contractapi.TransactionContextInterface, ids []string) (assets []*SensorAsset, err error) {
 
 	for _, id := range ids {
 		assetJSON, err := ctx.GetStub().GetState(id)
 
 		if err != nil {
 			return nil, err
+		}
+
+		if assetJSON == nil {
+			continue
 		}
 
 		var sensorAsset SensorAsset
@@ -191,7 +184,6 @@ func (s *SensorContract) GetAssetHistory(ctx contractapi.TransactionContextInter
 		}
 
 		assets = append(assets, &sensorAsset)
-
 	}
 
 	return
